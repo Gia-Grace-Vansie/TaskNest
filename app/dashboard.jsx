@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,28 +8,67 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useUser } from "../contexts/UserContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 export default function DashboardContent() {
   const { user } = useUser();
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const scrollRef = useRef(null);
+  
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Disable mouse wheel scrolling on web
+  // Mock tasks data - replace with your actual task data source
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el && typeof window !== "undefined") {
-      const handleWheel = (e) => e.preventDefault();
-      el.addEventListener("wheel", handleWheel, { passive: false });
-      return () => el.removeEventListener("wheel", handleWheel);
-    }
+    // Simulate loading tasks
+    const mockTasks = [
+      { id: 1, title: "Complete project proposal", completed: true, dueDate: new Date() },
+      { id: 2, title: "Team meeting", completed: false, dueDate: new Date() },
+      { id: 3, title: "Design review", completed: true, dueDate: new Date() },
+      { id: 4, title: "Client call", completed: false, dueDate: new Date() },
+      { id: 5, title: "Code deployment", completed: false, dueDate: new Date() },
+      { id: 6, title: "Documentation update", completed: true, dueDate: new Date() },
+    ];
+    
+    setTimeout(() => {
+      setTasks(mockTasks);
+      setLoading(false);
+    }, 500);
   }, []);
+
+  // Calculate statistics
+  const completedTasks = tasks.filter(task => task.completed).length;
+  const pendingTasks = tasks.filter(task => !task.completed).length;
+  
+  // Calculate streak (mock implementation)
+  const calculateStreak = () => {
+    // This is a simple mock - replace with your actual streak logic
+    const completedToday = tasks.filter(task => 
+      task.completed && 
+      task.dueDate.toDateString() === new Date().toDateString()
+    ).length;
+    
+    return completedToday > 0 ? 3 : 0; // Mock streak of 3 if tasks completed today
+  };
+  
+  const currentStreak = calculateStreak();
 
   if (!user) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#000" />
+      <View style={[styles.loader, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.loader, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, { color: theme.colors.text }]}>Loading your tasks...</Text>
       </View>
     );
   }
@@ -37,99 +76,103 @@ export default function DashboardContent() {
   return (
     <ScrollView
       ref={scrollRef}
-      scrollEnabled={true}
+      scrollEnabled
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { backgroundColor: theme.colors.background }]}
     >
       {/* Header / Greeting */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Welcome Back, {user.username} 👋</Text>
-        <Text style={styles.subGreeting}>
-          Ready to stay on top of your tasks?
+        <Text style={[styles.greeting, { color: theme.colors.text }]}>
+          Welcome Back, {user.username} 👋
+        </Text>
+        <Text style={[styles.subGreeting, { color: theme.colors.text }]}>
+          {pendingTasks > 0 
+            ? `You have ${pendingTasks} task${pendingTasks !== 1 ? 's' : ''} to complete today!`
+            : "All tasks completed! Great job! 🎉"
+          }
         </Text>
       </View>
 
       {/* Quick Stats */}
       <View style={styles.statsSection}>
-        <View style={styles.statCard}>
-          <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-          <Text style={styles.statNumber}>12</Text>
-          <Text style={styles.statLabel}>Completed</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, borderWidth: 1 }]}>
+          <Ionicons name="checkmark-circle" size={26} color="#4CAF50" />
+          <Text style={[styles.statNumber, { color: theme.colors.text }]}>{completedTasks}</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.text }]}>Completed</Text>
         </View>
-        <View style={styles.statCard}>
-          <Ionicons name="time" size={24} color="#FF9800" />
-          <Text style={styles.statNumber}>5</Text>
-          <Text style={styles.statLabel}>Pending</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, borderWidth: 1 }]}>
+          <Ionicons name="time" size={26} color="#FF9800" />
+          <Text style={[styles.statNumber, { color: theme.colors.text }]}>{pendingTasks}</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.text }]}>Pending</Text>
         </View>
-        <View style={styles.statCard}>
-          <Ionicons name="flame" size={24} color="#F44336" />
-          <Text style={styles.statNumber}>3</Text>
-          <Text style={styles.statLabel}>Streak</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, borderWidth: 1 }]}>
+          <Ionicons name="flame" size={26} color={currentStreak > 0 ? "#F44336" : "#666"} />
+          <Text style={[styles.statNumber, { color: theme.colors.text }]}>{currentStreak}</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.text }]}>Day Streak</Text>
         </View>
       </View>
 
-      {/* Today's Tasks */}
-      <View style={styles.tasksSection}>
-        <Text style={styles.tasksTitle}>Today's Tasks</Text>
-
-        <View style={styles.taskItem}>
-          <View style={styles.taskIndicator}></View>
-          <View style={styles.taskContent}>
-            <Text style={styles.taskText}>Low-fi Wireframe Done</Text>
-            <Text style={styles.taskTime}>9:00 AM</Text>
-          </View>
+      {/* Today's Tasks Preview */}
+      <View style={[styles.tasksSection, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, borderWidth: 1 }]}>
+        <View style={styles.tasksHeader}>
+          <Text style={[styles.tasksTitle, { color: theme.colors.text }]}>Today's Tasks</Text>
+          <Text style={[styles.tasksCount, { color: theme.colors.primary }]}>
+            {pendingTasks} pending
+          </Text>
         </View>
-
-        <View style={styles.taskItem}>
-          <View style={[styles.taskIndicator, styles.taskIndicatorCompleted]}></View>
-          <View style={styles.taskContent}>
-            <Text style={[styles.taskText, styles.taskCompleted]}>
-              Hi-fi Wireframe Done
+        
+        {tasks.slice(0, 3).map((task) => (
+          <View key={task.id} style={styles.taskItem}>
+            <View style={[
+              styles.taskIndicator,
+              { backgroundColor: task.completed ? "#4CAF50" : "#FF9800" }
+            ]} />
+            <Text style={[
+              styles.taskText,
+              { color: theme.colors.text },
+              task.completed && styles.completedTask
+            ]}>
+              {task.title}
             </Text>
-            <Text style={styles.taskTime}>11:00 AM</Text>
+            <Ionicons 
+              name={task.completed ? "checkmark-circle" : "time"} 
+              size={20} 
+              color={task.completed ? "#4CAF50" : "#FF9800"} 
+            />
           </View>
-        </View>
-
-        <View style={styles.taskItem}>
-          <View style={styles.taskIndicator}></View>
-          <View style={styles.taskContent}>
-            <Text style={styles.taskText}>Team Meeting</Text>
-            <Text style={styles.taskTime}>2:00 PM</Text>
-          </View>
-        </View>
-
-        {/* Add Task Button */}
-        <Pressable
-          style={styles.addTaskButton}
-          onPress={() => navigation.navigate("tasks/AddTask")}
-        >
-          <Ionicons name="add-circle-outline" size={28} color="#fff" />
-          <Text style={styles.addTaskText}>Add Task</Text>
-        </Pressable>
+        ))}
+        
+        {tasks.length === 0 && (
+          <Text style={[styles.noTasksText, { color: theme.colors.text }]}>
+            No tasks for today. Add some tasks to get started!
+          </Text>
+        )}
+        
+        {/* Add Task Button REMOVED */}
       </View>
 
       {/* Projects Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Projects</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Projects</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.projectsContainer}
         >
           <Pressable
-            style={styles.projectCard}
+            style={[styles.projectCard, { backgroundColor: theme.colors.primary }]}
             onPress={() => navigation.navigate("tasks/AddProject")}
           >
             <Ionicons name="add-circle-outline" size={32} color="#fff" />
             <Text style={styles.projectText}>Add Project</Text>
           </Pressable>
 
-          <View style={[styles.projectCard, styles.sampleProject]}>
+          <View style={[styles.projectCard, { backgroundColor: theme.colors.primary }]}>
             <Ionicons name="briefcase-outline" size={32} color="#fff" />
             <Text style={styles.projectText}>Work</Text>
           </View>
 
-          <View style={[styles.projectCard, styles.sampleProject]}>
+          <View style={[styles.projectCard, { backgroundColor: theme.colors.primary }]}>
             <Ionicons name="home-outline" size={32} color="#fff" />
             <Text style={styles.projectText}>Personal</Text>
           </View>
@@ -141,68 +184,90 @@ export default function DashboardContent() {
 
 const styles = StyleSheet.create({
   scrollContent: { padding: 20, paddingBottom: 100 },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { marginBottom: 30, marginTop: 10 },
-  greeting: { fontSize: 28, fontWeight: "bold", color: "#000", marginBottom: 5 },
-  subGreeting: { fontSize: 16, color: "#666" },
-  statsSection: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  loader: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center" 
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+  },
+  header: { marginBottom: 25, marginTop: 10 },
+  greeting: { fontSize: 26, fontWeight: "700", marginBottom: 6 },
+  subGreeting: { fontSize: 16 },
+  statsSection: { flexDirection: "row", justifyContent: "space-between", marginBottom: 22 },
   statCard: {
     flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 15,
+    borderRadius: 14,
+    padding: 16,
     alignItems: "center",
     marginHorizontal: 5,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 2,
   },
-  statNumber: { fontSize: 24, fontWeight: "bold", color: "#000", marginVertical: 5 },
-  statLabel: { fontSize: 12, color: "#666", fontWeight: "500" },
+  statNumber: { fontSize: 22, fontWeight: "700", marginVertical: 4 },
+  statLabel: { fontSize: 13, fontWeight: "500" },
   tasksSection: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 20,
-    marginBottom: 30,
+    marginBottom: 28,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
+    shadowRadius: 10,
     elevation: 3,
   },
-  tasksTitle: { fontSize: 18, fontWeight: "bold", color: "#000", marginBottom: 15 },
-  taskItem: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f0f0f0" },
-  taskIndicator: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#007AFF", marginRight: 12 },
-  taskIndicatorCompleted: { backgroundColor: "#4CAF50" },
-  taskContent: { flex: 1 },
-  taskText: { fontSize: 16, color: "#000", fontWeight: "500", marginBottom: 2 },
-  taskCompleted: { color: "#666", textDecorationLine: "line-through" },
-  taskTime: { fontSize: 14, color: "#666" },
-  addTaskButton: {
+  tasksHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  tasksTitle: { fontSize: 18, fontWeight: "700" },
+  tasksCount: { fontSize: 14, fontWeight: "600" },
+  taskItem: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#007AFF",
-    borderRadius: 12,
     paddingVertical: 12,
-    marginTop: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
   },
-  addTaskText: { color: "#fff", fontWeight: "bold", fontSize: 16, marginLeft: 8 },
-  section: { marginBottom: 30 },
-  sectionTitle: { fontSize: 20, fontWeight: "bold", color: "#000", marginBottom: 15 },
+  taskIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  taskText: {
+    flex: 1,
+    fontSize: 14,
+  },
+  completedTask: {
+    textDecorationLine: "line-through",
+    color: "#888",
+  },
+  noTasksText: {
+    textAlign: "center",
+    fontSize: 14,
+    marginVertical: 20,
+    fontStyle: "italic",
+  },
+  // REMOVED: addTaskButton and addTaskText styles
+  section: { marginBottom: 28 },
+  sectionTitle: { fontSize: 20, fontWeight: "700", marginBottom: 16 },
   projectsContainer: { paddingRight: 20 },
   projectCard: {
     width: 140,
     height: 120,
-    backgroundColor: "#000",
-    borderRadius: 16,
+    borderRadius: 18,
     marginRight: 15,
     justifyContent: "center",
     alignItems: "center",
     padding: 15,
   },
-  sampleProject: { backgroundColor: "#333" },
-  projectText: { color: "white", fontWeight: "bold", textAlign: "center", marginTop: 8, fontSize: 14 },
+  projectText: { color: "#fff", fontWeight: "600", textAlign: "center", marginTop: 8, fontSize: 14 },
 });

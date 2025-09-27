@@ -1,23 +1,31 @@
+// app/_layout.jsx
 import { Slot, usePathname } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { UserProvider } from "../contexts/UserContext";
+import { ThemeProvider } from "../contexts/ThemeContext";
+import { TaskProvider } from "../contexts/TaskContext"; // Import TaskProvider
 import BottomNav from "./components/BottomNav";
 
 export default function RootLayout() {
   const pathname = usePathname();
-  // List of routes where BottomNav should be hidden
+
   const hideNav = [
-    "/",           // index
-    "/auth/signin", // login
-    "/auth/signup" // signup
+    "/",
+    "/auth/signin",
+    "/auth/signup", 
+    "/logoutScreen",
   ];
 
   return (
-    <SafeAreaProvider>
-      <UserProvider>
-        <Slot />
-        {!hideNav.includes(pathname) && <BottomNav />}
-      </UserProvider>
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <UserProvider>
+          <TaskProvider> {/* Add TaskProvider here */}
+            <Slot />
+            {!hideNav.includes(pathname) && <BottomNav />}
+          </TaskProvider>
+        </UserProvider>
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
