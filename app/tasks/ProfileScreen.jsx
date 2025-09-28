@@ -48,7 +48,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 20 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}> {/* Increased paddingBottom */}
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <Image
@@ -75,6 +75,10 @@ export default function ProfileScreen() {
         {/* Theme Customization */}
         <View style={styles.infoSection}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Customize Theme</Text>
+          
+          <Text style={[styles.infoLabel, { color: theme.colors.text, marginBottom: 15 }]}>
+            Choose accent color:
+          </Text>
           <View style={styles.colorsContainer}>
             {colors.map((color) => (
               <TouchableOpacity
@@ -88,16 +92,19 @@ export default function ProfileScreen() {
               />
             ))}
           </View>
+          
           <TouchableOpacity
-            style={[styles.toggleButton, { backgroundColor: theme.colors.primary }]}
+            style={[styles.toggleButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.primary }]}
             onPress={toggleTheme}
           >
-            <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Toggle Light/Dark Mode</Text>
+            <Text style={[styles.toggleButtonText, { color: theme.colors.text }]}>
+              Switch to {theme.isDark ? "Light" : "Dark"} Mode
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button */}
-        <View style={styles.infoSection}>
+        {/* Logout Button - Moved up with more spacing */}
+        <View style={styles.logoutSection}>
           <Pressable
             style={[styles.logoutButton, { backgroundColor: theme.colors.primary }]}
             onPress={handleLogout}
@@ -111,29 +118,107 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  profileHeader: { alignItems: "center", marginBottom: 24 },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: "#fff", marginBottom: 12 },
-  userName: { fontSize: 20, fontWeight: "700" },
-  userEmail: { fontSize: 14, marginTop: 2 },
-  infoSection: { marginTop: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 10 },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  infoLabel: { fontSize: 14 },
-  infoValue: { fontSize: 14, fontWeight: "500" },
+  profileHeader: { 
+    alignItems: "center", 
+    marginBottom: 24,
+    paddingVertical: 20,
+  },
+  avatar: { 
+    width: 100, 
+    height: 100, 
+    borderRadius: 50, 
+    backgroundColor: "#fff", 
+    marginBottom: 12,
+  },
+  userName: { 
+    fontSize: 24, 
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  userEmail: { 
+    fontSize: 16, 
+    opacity: 0.7,
+  },
+  infoSection: { 
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+  },
+  logoutSection: {
+    marginTop: 24,
+    marginBottom: 40, // Added extra margin at the bottom
+  },
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: "700", 
+    marginBottom: 16,
+  },
+  infoRow: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    marginBottom: 12,
+    paddingVertical: 4,
+  },
+  infoLabel: { 
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  infoValue: { 
+    fontSize: 14, 
+    fontWeight: "500",
+    opacity: 0.8,
+  },
   logoutButton: {
-    marginTop: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
   },
-  logoutText: { fontSize: 14, fontWeight: "600" },
-  colorsContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 14 },
-  colorCircle: { width: 36, height: 36, borderRadius: 18, marginHorizontal: 6 },
-  selectedColor: { borderWidth: 2, borderColor: "#000", transform: [{ scale: 1.05 }] },
-  toggleButton: { paddingVertical: 10, borderRadius: 10, alignItems: "center" },
+  logoutText: { 
+    fontSize: 16, 
+    fontWeight: "600" 
+  },
+  colorsContainer: { 
+    flexDirection: "row", 
+    justifyContent: "center", 
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  colorCircle: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    marginHorizontal: 6,
+    marginVertical: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  selectedColor: { 
+    borderWidth: 3, 
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 3,
+    transform: [{ scale: 1.1 }] 
+  },
+  toggleButton: {
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 2,
+  },
+  toggleButtonText: {
+    fontWeight: "600", 
+    fontSize: 14,
+  },
 });

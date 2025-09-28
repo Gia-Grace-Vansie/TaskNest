@@ -17,7 +17,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTaskActions } from "../../hooks/useTaskActions";
 
 export default function TodoScreen() {
-  const { tasks, setTasks} = useTaskActions();
   const { theme } = useTheme();
   const [newTask, setNewTask] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,22 +30,22 @@ export default function TodoScreen() {
   });
   const [selectedTasks, setSelectedTasks] = useState([]);
 
-  // Use the custom hook - NOW WITH CORRECT PARAMETERS
-  const { 
-    deleteTask, 
-    deleteSelectedTasks, 
-    clearAllTasks, 
-    toggleTask, 
-    addTask, 
-    updateTask 
-  } = useTaskActions(tasks, setTasks, selectedTasks, setSelectedTasks);
+  // Use the custom hook ONCE and get everything from it
+  const {
+    tasks,
+    setTasks,
+    deleteTask,
+    deleteSelectedTasks,
+    clearAllTasks,
+    toggleTask,
+    addTask,
+    updateTask,
+  } = useTaskActions(selectedTasks, setSelectedTasks);
 
-  // Load tasks from storage on component mount
   useEffect(() => {
     loadTasks();
   }, []);
 
-  // Save tasks to storage whenever tasks change
   useEffect(() => {
     saveTasks();
   }, [tasks]);
@@ -57,13 +56,12 @@ export default function TodoScreen() {
       if (storedTasks !== null) {
         setTasks(JSON.parse(storedTasks));
       } else {
-        // Initial demo tasks if no stored tasks
         const initialTasks = [
-          { id: "1", title: "Complete project proposal", subject: "Work", dueDate: "2025-01-15", priority: "high", completed: false },
-          { id: "2", title: "Buy groceries", subject: "Personal", dueDate: "2025-01-10", priority: "medium", completed: false },
-          { id: "3", title: "Team meeting preparation", subject: "Work", dueDate: "2025-01-12", priority: "high", completed: true },
-          { id: "4", title: "Gym workout", subject: "Health", dueDate: "2025-01-09", priority: "low", completed: false },
-          { id: "5", title: "Read research paper", subject: "Study", dueDate: "2025-01-20", priority: "medium", completed: false },
+          { id: "1", title: "Complete project proposal", subject: "Work", dueDate: "2025-01-15", dueTime: "17:00", priority: "high", completed: false },
+          { id: "2", title: "Buy groceries", subject: "Personal", dueDate: "2025-01-10", dueTime: "12:00", priority: "medium", completed: false },
+          { id: "3", title: "Team meeting preparation", subject: "Work", dueDate: "2025-01-12", dueTime: "09:30", priority: "high", completed: true },
+          { id: "4", title: "Gym workout", subject: "Health", dueDate: "2025-01-09", dueTime: "18:00", priority: "low", completed: false },
+          { id: "5", title: "Read research paper", subject: "Study", dueDate: "2025-01-20", dueTime: "23:59", priority: "medium", completed: false },
         ];
         setTasks(initialTasks);
         await AsyncStorage.setItem('@todo_tasks', JSON.stringify(initialTasks));
@@ -81,34 +79,81 @@ export default function TodoScreen() {
     }
   };
 
-  // Filter and search tasks
+  // Format date input with automatic dashes
+  const formatDateInput = (text) => {
+    // Remove all non-digit characters
+    const numbers = text.replace(/\D/g, '');
+    
+    // Format as YYYY-MM-DD
+    if (numbers.length <= 4) {
+      return numbers;
+    } else if (numbers.length <= 6) {
+      return numbers.slice(0, 4) + '-' + numbers.slice(4);
+    } else {
+      return numbers.slice(0, 4) + '-' + numbers.slice(4, 6) + '-' + numbers.slice(6, 8);
+    }
+  };
+
+  // Format time input with automatic colon
+  const formatTimeInput = (text) => {
+    // Remove all non-digit characters
+    const numbers = text.replace(/\D/g, '');
+    
+    // Format as HH:MM
+    if (numbers.length <= 2) {
+      return numbers;
+    } else {
+      return numbers.slice(0, 2) + ':' + numbers.slice(2, 4);
+    }
+  };
+
+  const handleDateChange = (text) => {
+    const formattedDate = formatDateInput(text);
+    setEditingTask({ ...editingTask, dueDate: formattedDate });
+  };
+
+  const handleTimeChange = (text) => {
+    const formattedTime = formatTimeInput(text);
+    setEditingTask({ ...editingTask, dueTime: formattedTime });
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSubject = filters.subject === "all" || task.subject === filters.subject;
     const matchesPriority = filters.priority === "all" || task.priority === filters.priority;
-    const matchesStatus = filters.status === "all" || 
+    const matchesStatus = filters.status === "all" ||
       (filters.status === "completed" && task.completed) ||
       (filters.status === "pending" && !task.completed);
-    
+
     return matchesSearch && matchesSubject && matchesPriority && matchesStatus;
   });
 
   const handleAddTask = () => {
     if (!newTask.trim()) return;
-    addTask(newTask);
+    // Add default date and time for new tasks
+    const today = new Date();
+    const defaultDate = today.toISOString().split('T')[0];
+    const defaultTime = "23:59";
+    
+    addTask(newTask, defaultDate, defaultTime);
     setNewTask("");
   };
 
   const toggleSelectTask = (id) => {
-    setSelectedTasks(prev => 
-      prev.includes(id) 
+    setSelectedTasks(prev =>
+      prev.includes(id)
         ? prev.filter(taskId => taskId !== id)
         : [...prev, id]
     );
   };
 
   const editTask = (task) => {
-    setEditingTask({...task});
+    // Ensure dueTime exists when editing
+    const taskWithTime = {
+      ...task,
+      dueTime: task.dueTime || "23:59" // Default time if not set
+    };
+    setEditingTask({ ...taskWithTime });
     setEditModalVisible(true);
   };
 
@@ -148,6 +193,36 @@ export default function TodoScreen() {
     }
   };
 
+  // Mark task as complete/incomplete
+  const markAsComplete = (taskId) => {
+    const updatedTasks = tasks.map(task =>
+      task.id === taskId ? { ...task, completed: !task.completed } : task
+    );
+    setTasks(updatedTasks);
+  };
+
+  // Mark selected tasks as complete
+  const markSelectedAsComplete = () => {
+    if (selectedTasks.length === 0) return;
+    
+    const updatedTasks = tasks.map(task =>
+      selectedTasks.includes(task.id) ? { ...task, completed: true } : task
+    );
+    setTasks(updatedTasks);
+    setSelectedTasks([]); // Clear selection after marking complete
+  };
+
+  // Mark selected tasks as incomplete
+  const markSelectedAsIncomplete = () => {
+    if (selectedTasks.length === 0) return;
+    
+    const updatedTasks = tasks.map(task =>
+      selectedTasks.includes(task.id) ? { ...task, completed: false } : task
+    );
+    setTasks(updatedTasks);
+    setSelectedTasks([]); // Clear selection after marking incomplete
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* Header */}
@@ -155,11 +230,19 @@ export default function TodoScreen() {
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>To-Do List</Text>
         <View style={styles.headerActions}>
           {selectedTasks.length > 0 && (
-            <TouchableOpacity onPress={deleteSelectedTasks} style={styles.deleteSelectedButton}>
-              <Text style={{ color: "#FF3B30", fontSize: 12, fontWeight: "500" }}>Delete Selected ({selectedTasks.length})</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={markSelectedAsComplete} style={styles.completeSelectedButton}>
+                <Text style={{ color: "#34C759", fontSize: 12, fontWeight: "500" }}>Mark Complete ({selectedTasks.length})</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={markSelectedAsIncomplete} style={styles.incompleteSelectedButton}>
+                <Text style={{ color: "#FF9500", fontSize: 12, fontWeight: "500" }}>Mark Incomplete ({selectedTasks.length})</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={deleteSelectedTasks} style={styles.deleteSelectedButton}>
+                <Text style={{ color: "#FF3B30", fontSize: 12, fontWeight: "500" }}>Delete ({selectedTasks.length})</Text>
+              </TouchableOpacity>
+            </>
           )}
-          {tasks.length > 0 && (
+          {tasks.length > 0 && selectedTasks.length === 0 && (
             <TouchableOpacity onPress={clearAllTasks} style={styles.clearAllTasks}>
               <Text style={{ color: "#FF3B30", fontSize: 12, fontWeight: "500" }}>Clear All</Text>
             </TouchableOpacity>
@@ -207,7 +290,7 @@ export default function TodoScreen() {
             {filters.subject !== "all" && (
               <View style={[styles.filterTag, { backgroundColor: getSubjectColor(filters.subject) }]}>
                 <Text style={styles.filterTagText}>Subject: {filters.subject}</Text>
-                <TouchableOpacity onPress={() => setFilters({...filters, subject: "all"})}>
+                <TouchableOpacity onPress={() => setFilters({ ...filters, subject: "all" })}>
                   <Ionicons name="close" size={14} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -215,7 +298,7 @@ export default function TodoScreen() {
             {filters.priority !== "all" && (
               <View style={[styles.filterTag, { backgroundColor: getPriorityColor(filters.priority) }]}>
                 <Text style={styles.filterTagText}>Priority: {filters.priority}</Text>
-                <TouchableOpacity onPress={() => setFilters({...filters, priority: "all"})}>
+                <TouchableOpacity onPress={() => setFilters({ ...filters, priority: "all" })}>
                   <Ionicons name="close" size={14} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -223,7 +306,7 @@ export default function TodoScreen() {
             {filters.status !== "all" && (
               <View style={[styles.filterTag, { backgroundColor: "#666" }]}>
                 <Text style={styles.filterTagText}>Status: {filters.status}</Text>
-                <TouchableOpacity onPress={() => setFilters({...filters, status: "all"})}>
+                <TouchableOpacity onPress={() => setFilters({ ...filters, status: "all" })}>
                   <Ionicons name="close" size={14} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -266,8 +349,8 @@ export default function TodoScreen() {
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={48} color="#888" />
             <Text style={[styles.emptyStateText, { color: theme.colors.text }]}>
-              {searchQuery || filters.subject !== "all" || filters.priority !== "all" || filters.status !== "all" 
-                ? "No tasks match your filters" 
+              {searchQuery || filters.subject !== "all" || filters.priority !== "all" || filters.status !== "all"
+                ? "No tasks match your filters"
                 : "No tasks yet. Add one above!"}
             </Text>
           </View>
@@ -306,8 +389,8 @@ export default function TodoScreen() {
                   <Ionicons name="checkmark" size={14} color="#fff" />
                 ) : null}
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.taskContent}
                 onPress={() => editTask(task)}
               >
@@ -327,19 +410,31 @@ export default function TodoScreen() {
                   <View style={[styles.priorityTag, { backgroundColor: getPriorityColor(task.priority) }]}>
                     <Text style={styles.metaText}>{task.priority}</Text>
                   </View>
-                  <Text style={[styles.dueDateText, { color: theme.colors.text }]}>{task.dueDate}</Text>
+                  <Text style={[styles.dueDateText, { color: theme.colors.text }]}>
+                    {task.dueDate} {task.dueTime && `at ${task.dueTime}`}
+                  </Text>
                 </View>
               </TouchableOpacity>
-              
+
               <View style={styles.taskActions}>
-                <TouchableOpacity 
-                  onPress={() => editTask(task)} 
+                <TouchableOpacity
+                  onPress={() => markAsComplete(task.id)}
+                  style={styles.completeButton}
+                >
+                  <Ionicons 
+                    name={task.completed ? "refresh" : "checkmark-circle"} 
+                    size={16} 
+                    color={task.completed ? "#FF9500" : "#34C759"} 
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => editTask(task)}
                   style={styles.editButton}
                 >
                   <Ionicons name="create-outline" size={16} color="#007AFF" />
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={() => deleteTask(task.id)} 
+                <TouchableOpacity
+                  onPress={() => deleteTask(task.id)}
                   style={styles.deleteButton}
                 >
                   <Ionicons name="trash-outline" size={16} color="#FF3B30" />
@@ -360,7 +455,7 @@ export default function TodoScreen() {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Filter Tasks</Text>
-            
+
             {/* Subject Filter */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: theme.colors.text }]}>Subject</Text>
@@ -372,7 +467,7 @@ export default function TodoScreen() {
                       styles.filterOption,
                       filters.subject === subject && [styles.selectedOption, { backgroundColor: theme.colors.primary }]
                     ]}
-                    onPress={() => applyFilters({...filters, subject})}
+                    onPress={() => applyFilters({ ...filters, subject })}
                   >
                     <Text style={[
                       styles.optionText,
@@ -397,7 +492,7 @@ export default function TodoScreen() {
                       styles.filterOption,
                       filters.priority === priority && [styles.selectedOption, { backgroundColor: theme.colors.primary }]
                     ]}
-                    onPress={() => applyFilters({...filters, priority})}
+                    onPress={() => applyFilters({ ...filters, priority })}
                   >
                     <Text style={[
                       styles.optionText,
@@ -422,7 +517,7 @@ export default function TodoScreen() {
                       styles.filterOption,
                       filters.status === status && [styles.selectedOption, { backgroundColor: theme.colors.primary }]
                     ]}
-                    onPress={() => applyFilters({...filters, status})}
+                    onPress={() => applyFilters({ ...filters, status })}
                   >
                     <Text style={[
                       styles.optionText,
@@ -464,7 +559,7 @@ export default function TodoScreen() {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Edit Task</Text>
-            
+
             {editingTask && (
               <>
                 <View style={styles.editSection}>
@@ -472,7 +567,7 @@ export default function TodoScreen() {
                   <TextInput
                     style={[styles.editInput, { backgroundColor: theme.colors.card, color: theme.colors.text, borderColor: theme.colors.border }]}
                     value={editingTask.title}
-                    onChangeText={(text) => setEditingTask({...editingTask, title: text})}
+                    onChangeText={(text) => setEditingTask({ ...editingTask, title: text })}
                     placeholder="Enter task title"
                     placeholderTextColor="#888"
                   />
@@ -488,7 +583,7 @@ export default function TodoScreen() {
                           styles.filterOption,
                           editingTask.subject === subject && [styles.selectedOption, { backgroundColor: theme.colors.primary }]
                         ]}
-                        onPress={() => setEditingTask({...editingTask, subject})}
+                        onPress={() => setEditingTask({ ...editingTask, subject })}
                       >
                         <Text style={[
                           styles.optionText,
@@ -512,7 +607,7 @@ export default function TodoScreen() {
                           styles.filterOption,
                           editingTask.priority === priority && [styles.selectedOption, { backgroundColor: theme.colors.primary }]
                         ]}
-                        onPress={() => setEditingTask({...editingTask, priority})}
+                        onPress={() => setEditingTask({ ...editingTask, priority })}
                       >
                         <Text style={[
                           styles.optionText,
@@ -531,9 +626,24 @@ export default function TodoScreen() {
                   <TextInput
                     style={[styles.editInput, { backgroundColor: theme.colors.card, color: theme.colors.text, borderColor: theme.colors.border }]}
                     value={editingTask.dueDate}
-                    onChangeText={(text) => setEditingTask({...editingTask, dueDate: text})}
+                    onChangeText={handleDateChange}
                     placeholder="YYYY-MM-DD"
                     placeholderTextColor="#888"
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                </View>
+
+                <View style={styles.editSection}>
+                  <Text style={[styles.editLabel, { color: theme.colors.text }]}>Due Time</Text>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: theme.colors.card, color: theme.colors.text, borderColor: theme.colors.border }]}
+                    value={editingTask.dueTime}
+                    onChangeText={handleTimeChange}
+                    placeholder="HH:MM"
+                    placeholderTextColor="#888"
+                    keyboardType="numeric"
+                    maxLength={5}
                   />
                 </View>
               </>
@@ -562,6 +672,7 @@ export default function TodoScreen() {
 
 // Keep your existing styles object exactly as it is...
 const styles = StyleSheet.create({
+  // ...existing styles...
   header: { 
     padding: 14, 
     borderBottomWidth: 1,
@@ -576,10 +687,25 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 15,
+    gap: 8,
+    flexWrap: 'wrap',
   },
   clearAllTasks: {
     padding: 5,
+  },
+  completeSelectedButton: {
+    padding: 5,
+    backgroundColor: 'rgba(52, 199, 89, 0.1)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  incompleteSelectedButton: {
+    padding: 5,
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   deleteSelectedButton: {
     padding: 5,
@@ -700,8 +826,11 @@ const styles = StyleSheet.create({
   },
   taskActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
     alignItems: 'center',
+  },
+  completeButton: {
+    padding: 4,
   },
   editButton: {
     padding: 4,

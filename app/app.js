@@ -1,23 +1,33 @@
 // App.js
 import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer } from "@react-native-async-storage/async-storage";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
 
 import Dashboard from "./dashboard.jsx";
 import CalendarScreen from "./tasks/CalendarScreen.jsx";
-import AddTask from "./tasks/AddTask.jsx";
 import ToDoScreen from "./tasks/ToDoScreen.jsx";
 import ProfileScreen from "./tasks/ProfileScreen.jsx";
 import Welcome from "./welcome.jsx";
 import SignUp from "./auth/signup.jsx";
+import AddEventScreen from "./tasks/AddEventScreen.jsx";
 
 import { ThemeProvider } from "../contexts/ThemeContext";
-import { TaskProvider } from "../contexts/TaskContext";   // ✅ add this
+import { TaskProvider } from "../contexts/TaskContext";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+
+// Create a stack navigator for the Calendar tab
+function CalendarStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="CalendarMain" component={CalendarScreen} />
+      <Stack.Screen name="AddEvent" component={AddEventScreen} />
+    </Stack.Navigator>
+  );
+}
 
 function MainTabs() {
   return (
@@ -47,7 +57,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Calendar"
-        component={CalendarScreen}
+        component={CalendarStack}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
@@ -56,7 +66,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Add"
-        component={AddTask}
+        component={ToDoScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={32} color={color} />
@@ -88,7 +98,7 @@ function MainTabs() {
 export default function App() {
   return (
     <ThemeProvider>
-      <TaskProvider>   {/* ✅ Wrap all screens with TaskProvider */}
+      <TaskProvider>
         <NavigationContainer>
           <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Welcome" component={Welcome} />

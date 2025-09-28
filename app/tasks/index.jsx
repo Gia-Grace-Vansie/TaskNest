@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { View } from 'react-native';
 import Dashboard from '../dashboard.jsx';
 import CalendarScreen from './CalendarScreen.jsx';
-import AddTask from './AddTask.jsx';
+import AddEventScreen from './AddEventScreen.jsx';
 import ToDoScreen from './ToDoScreen.jsx';
 import ProfileScreen from './ProfileScreen.jsx';
 import Welcome from '../welcome.jsx';
@@ -24,7 +24,7 @@ function MainAppLayout() {
       >
         <Stack.Screen name="Dashboard" component={Dashboard} />
         <Stack.Screen name="CalendarScreen" component={CalendarScreen} />
-        <Stack.Screen name="AddTask" component={AddTask} />
+        <Stack.Screen name="AddEventScreen" component={AddEventScreen} />
         <Stack.Screen name="ToDoScreen" component={ToDoScreen} />
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
       </Stack.Navigator>

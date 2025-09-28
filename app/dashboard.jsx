@@ -11,49 +11,49 @@ import { useUser } from "../contexts/UserContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function DashboardContent() {
   const { user } = useUser();
   const { theme } = useTheme();
   const navigation = useNavigation();
   const scrollRef = useRef(null);
-  
+
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Mock tasks data - replace with your actual task data source
+  // Load tasks from AsyncStorage (same as ToDoScreen)
   useEffect(() => {
-    // Simulate loading tasks
-    const mockTasks = [
-      { id: 1, title: "Complete project proposal", completed: true, dueDate: new Date() },
-      { id: 2, title: "Team meeting", completed: false, dueDate: new Date() },
-      { id: 3, title: "Design review", completed: true, dueDate: new Date() },
-      { id: 4, title: "Client call", completed: false, dueDate: new Date() },
-      { id: 5, title: "Code deployment", completed: false, dueDate: new Date() },
-      { id: 6, title: "Documentation update", completed: true, dueDate: new Date() },
-    ];
-    
-    setTimeout(() => {
-      setTasks(mockTasks);
+    const loadTasks = async () => {
+      try {
+        const storedTasks = await AsyncStorage.getItem('@todo_tasks');
+        if (storedTasks !== null) {
+          setTasks(JSON.parse(storedTasks));
+        } else {
+          setTasks([]);
+        }
+      } catch (error) {
+        setTasks([]);
+      }
       setLoading(false);
-    }, 500);
+    };
+    loadTasks();
   }, []);
 
   // Calculate statistics
   const completedTasks = tasks.filter(task => task.completed).length;
   const pendingTasks = tasks.filter(task => !task.completed).length;
-  
+
   // Calculate streak (mock implementation)
   const calculateStreak = () => {
-    // This is a simple mock - replace with your actual streak logic
-    const completedToday = tasks.filter(task => 
-      task.completed && 
-      task.dueDate.toDateString() === new Date().toDateString()
+    const today = new Date().toISOString().slice(0, 10);
+    const completedToday = tasks.filter(task =>
+      task.completed &&
+      task.dueDate === today
     ).length;
-    
     return completedToday > 0 ? 3 : 0; // Mock streak of 3 if tasks completed today
   };
-  
+
   const currentStreak = calculateStreak();
 
   if (!user) {
@@ -73,6 +73,10 @@ export default function DashboardContent() {
     );
   }
 
+  // Filter today's tasks (dueDate === today)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todaysTasks = tasks.filter(task => task.dueDate === todayStr);
+
   return (
     <ScrollView
       ref={scrollRef}
@@ -86,7 +90,7 @@ export default function DashboardContent() {
           Welcome Back, {user.username} 👋
         </Text>
         <Text style={[styles.subGreeting, { color: theme.colors.text }]}>
-          {pendingTasks > 0 
+          {pendingTasks > 0
             ? `You have ${pendingTasks} task${pendingTasks !== 1 ? 's' : ''} to complete today!`
             : "All tasks completed! Great job! 🎉"
           }
@@ -117,38 +121,36 @@ export default function DashboardContent() {
         <View style={styles.tasksHeader}>
           <Text style={[styles.tasksTitle, { color: theme.colors.text }]}>Today's Tasks</Text>
           <Text style={[styles.tasksCount, { color: theme.colors.primary }]}>
-            {pendingTasks} pending
+            {todaysTasks.filter(task => !task.completed).length} pending
           </Text>
         </View>
-        
-        {tasks.slice(0, 3).map((task) => (
-          <View key={task.id} style={styles.taskItem}>
-            <View style={[
-              styles.taskIndicator,
-              { backgroundColor: task.completed ? "#4CAF50" : "#FF9800" }
-            ]} />
-            <Text style={[
-              styles.taskText,
-              { color: theme.colors.text },
-              task.completed && styles.completedTask
-            ]}>
-              {task.title}
-            </Text>
-            <Ionicons 
-              name={task.completed ? "checkmark-circle" : "time"} 
-              size={20} 
-              color={task.completed ? "#4CAF50" : "#FF9800"} 
-            />
-          </View>
-        ))}
-        
-        {tasks.length === 0 && (
+
+        {todaysTasks.length > 0 ? (
+          todaysTasks.slice(0, 3).map((task) => (
+            <View key={task.id} style={styles.taskItem}>
+              <View style={[
+                styles.taskIndicator,
+                { backgroundColor: task.completed ? "#4CAF50" : "#FF9800" }
+              ]} />
+              <Text style={[
+                styles.taskText,
+                { color: theme.colors.text },
+                task.completed && styles.completedTask
+              ]}>
+                {task.title}
+              </Text>
+              <Ionicons
+                name={task.completed ? "checkmark-circle" : "time"}
+                size={20}
+                color={task.completed ? "#4CAF50" : "#FF9800"}
+              />
+            </View>
+          ))
+        ) : (
           <Text style={[styles.noTasksText, { color: theme.colors.text }]}>
             No tasks for today. Add some tasks to get started!
           </Text>
         )}
-        
-        {/* Add Task Button REMOVED */}
       </View>
 
       {/* Projects Section */}
@@ -184,10 +186,10 @@ export default function DashboardContent() {
 
 const styles = StyleSheet.create({
   scrollContent: { padding: 20, paddingBottom: 100 },
-  loader: { 
-    flex: 1, 
-    justifyContent: "center", 
-    alignItems: "center" 
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center"
   },
   loadingText: {
     marginTop: 10,
@@ -256,7 +258,6 @@ const styles = StyleSheet.create({
     marginVertical: 20,
     fontStyle: "italic",
   },
-  // REMOVED: addTaskButton and addTaskText styles
   section: { marginBottom: 28 },
   sectionTitle: { fontSize: 20, fontWeight: "700", marginBottom: 16 },
   projectsContainer: { paddingRight: 20 },

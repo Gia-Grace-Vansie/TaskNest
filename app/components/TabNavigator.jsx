@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AddEventScreen from '../tasks/AddEventScreen';
 
 function TabNavigator() {
   return (
@@ -35,7 +36,7 @@ function TabNavigator() {
       />
       <Tab.Screen 
         name="Add" 
-        component={AddTask}
+        component={AddEventScreen}
         options={{
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={32} color={color} />

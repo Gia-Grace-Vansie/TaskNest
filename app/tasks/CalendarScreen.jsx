@@ -9,6 +9,7 @@ import {
   Modal,
   Pressable,
   Alert,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -29,8 +30,8 @@ const holidays = {
   "2025-12-30": "Rizal Day",
 };
 
-// Mock tasks data - replace with your actual tasks
-const mockTasks = [
+// Mock events data - replace with your actual events
+const mockEvents = [
   { id: 1, title: "Project Proposal", dueDate: "2025-09-15", completed: false },
   { id: 2, title: "Team Meeting", dueDate: "2025-09-15", completed: false },
   { id: 3, title: "Design Review", dueDate: "2025-09-20", completed: true },
@@ -48,7 +49,16 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewMode, setViewMode] = useState("monthly"); // "monthly" or "weekly"
   const [modalVisible, setModalVisible] = useState(false);
-  const [tasksForSelectedDate, setTasksForSelectedDate] = useState([]);
+  const [eventsForSelectedDate, setEventsForSelectedDate] = useState([]);
+  
+  // New state for Add Event modal
+  const [addEventModalVisible, setAddEventModalVisible] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState("");
+  const [newEventDate, setNewEventDate] = useState("");
+  const [events, setEvents] = useState(mockEvents);
+  
+  // State for Today's Events modal
+  const [todayEventsModalVisible, setTodayEventsModalVisible] = useState(false);
 
   const generateMonth = (month, year) => {
     const firstDay = new Date(year, month, 1).getDay();
@@ -68,15 +78,15 @@ export default function CalendarScreen() {
     return days;
   };
 
-  const getTasksForDate = (dateStr) => {
-    return mockTasks.filter(task => task.dueDate === dateStr);
+  const getEventsForDate = (dateStr) => {
+    return events.filter(event => event.dueDate === dateStr);
   };
 
   const handleDatePress = (year, month, day) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     setSelectedDate(dateStr);
-    const tasks = getTasksForDate(dateStr);
-    setTasksForSelectedDate(tasks);
+    const events = getEventsForDate(dateStr);
+    setEventsForSelectedDate(events);
     setModalVisible(true);
   };
 
@@ -95,31 +105,60 @@ export default function CalendarScreen() {
   };
 
   const changeWeek = (direction) => {
-    // Simple week navigation - in a real app, you'd want more sophisticated logic
     changeMonth(direction);
   };
 
-  const getTaskCountForDate = (dateStr) => {
-    return mockTasks.filter(task => task.dueDate === dateStr).length;
+  const getEventCountForDate = (dateStr) => {
+    return events.filter(event => event.dueDate === dateStr).length;
+  };
+
+  // Function to handle adding events
+  const handleAddEvent = () => {
+    if (!newEventTitle.trim() || !newEventDate.trim()) {
+      Alert.alert("Error", "Please fill in both title and date");
+      return;
+    }
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(newEventDate)) {
+      Alert.alert("Error", "Please use YYYY-MM-DD format for date");
+      return;
+    }
+
+    const newEvent = {
+      id: events.length + 1,
+      title: newEventTitle.trim(),
+      dueDate: newEventDate,
+      completed: false,
+    };
+
+    setEvents([...events, newEvent]);
+    setNewEventTitle("");
+    setNewEventDate("");
+    setAddEventModalVisible(false);
+    Alert.alert("Success", "Event added successfully!");
+  };
+
+  const openAddEventModal = () => {
+    const defaultDate = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    setNewEventDate(defaultDate);
+    setAddEventModalVisible(true);
+  };
+
+  // Show today's events in a modal
+  const showDailySummary = () => {
+    const todayDateStr = today.toISOString().split('T')[0];
+    const eventsToday = getEventsForDate(todayDateStr);
+    setEventsForSelectedDate(eventsToday);
+    setSelectedDate(todayDateStr);
+    setTodayEventsModalVisible(true);
   };
 
   const days = viewMode === "monthly" 
     ? generateMonth(currentMonth, currentYear)
-    : generateWeek(currentMonth, currentYear, 1); // Simple week generation
+    : generateWeek(currentMonth, currentYear, 1);
 
   const monthName = new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" });
-
-  // Updated function name to reflect its purpose
-  const navigateToAddEvent = () => navigation.navigate("AddEvent");
-
-  const showDailySummary = () => {
-    const tasksToday = getTasksForDate(today.toISOString().split('T')[0]);
-    Alert.alert(
-      "📋 Today's Tasks", 
-      `You have ${tasksToday.length} task${tasksToday.length !== 1 ? 's' : ''} due today!`,
-      [{ text: "OK" }]
-    );
-  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -184,7 +223,7 @@ export default function CalendarScreen() {
             if (!day) return <View key={idx} style={styles.dayBox} />;
             
             const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const taskCount = getTaskCountForDate(dateStr);
+            const eventCount = getEventCountForDate(dateStr);
             const isHoliday = holidays[dateStr];
             const isToday = dateStr === today.toISOString().split('T')[0];
 
@@ -207,12 +246,12 @@ export default function CalendarScreen() {
                   {day}
                 </Text>
                 {isHoliday && <View style={styles.holidayDot} />}
-                {taskCount > 0 && (
+                {eventCount > 0 && (
                   <View style={[
                     styles.taskIndicator,
                     { backgroundColor: theme.colors.primary }
                   ]}>
-                    <Text style={styles.taskIndicatorText}>{taskCount}</Text>
+                    <Text style={styles.taskIndicatorText}>{eventCount}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -228,15 +267,15 @@ export default function CalendarScreen() {
             onPress={showDailySummary}
           >
             <Ionicons name="calendar" size={20} color="#fff" />
-            <Text style={styles.summaryButtonText}>View Today's Tasks</Text>
+            <Text style={styles.summaryButtonText}>View Today's Events</Text>
           </TouchableOpacity>
           <Text style={[styles.summaryText, { color: theme.colors.text }]}>
-            Tap any date to see tasks due that day
+            Tap any date to see events due that day
           </Text>
         </View>
       </ScrollView>
 
-      {/* Date Tasks Modal */}
+      {/* Date Events Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -246,27 +285,27 @@ export default function CalendarScreen() {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              Tasks for {selectedDate}
+              Events for {selectedDate}
             </Text>
             
-            {tasksForSelectedDate.length === 0 ? (
+            {eventsForSelectedDate.length === 0 ? (
               <Text style={[styles.noTasksText, { color: theme.colors.text }]}>
-                No tasks due on this date
+                No events due on this date
               </Text>
             ) : (
-              tasksForSelectedDate.map(task => (
-                <View key={task.id} style={styles.taskItem}>
+              eventsForSelectedDate.map(event => (
+                <View key={event.id} style={styles.taskItem}>
                   <Ionicons 
-                    name={task.completed ? "checkmark-circle" : "radio-button-off"} 
+                    name={event.completed ? "checkmark-circle" : "radio-button-off"} 
                     size={20} 
-                    color={task.completed ? "#4CAF50" : theme.colors.primary} 
+                    color={event.completed ? "#4CAF50" : theme.colors.primary} 
                   />
                   <Text style={[
                     styles.taskText,
                     { color: theme.colors.text },
-                    task.completed && styles.completedTask
+                    event.completed && styles.completedTask
                   ]}>
-                    {task.title}
+                    {event.title}
                   </Text>
                 </View>
               ))
@@ -282,10 +321,123 @@ export default function CalendarScreen() {
         </View>
       </Modal>
 
-      {/* Add Event Button - Updated comment */}
+      {/* Today's Events Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={todayEventsModalVisible}
+        onRequestClose={() => setTodayEventsModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              📋 Today's Events ({selectedDate})
+            </Text>
+            
+            {eventsForSelectedDate.length === 0 ? (
+              <Text style={[styles.noTasksText, { color: theme.colors.text }]}>
+                No events today! 🎉
+              </Text>
+            ) : (
+              <View>
+                <Text style={[styles.tasksCountText, { color: theme.colors.text }]}>
+                  You have {eventsForSelectedDate.length} event{eventsForSelectedDate.length !== 1 ? 's' : ''} today:
+                </Text>
+                {eventsForSelectedDate.map(event => (
+                  <View key={event.id} style={styles.taskItem}>
+                    <Ionicons 
+                      name={event.completed ? "checkmark-circle" : "radio-button-off"} 
+                      size={20} 
+                      color={event.completed ? "#4CAF50" : theme.colors.primary} 
+                    />
+                    <Text style={[
+                      styles.taskText,
+                      { color: theme.colors.text },
+                      event.completed && styles.completedTask
+                    ]}>
+                      {event.title}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            
+            <Pressable
+              style={[styles.closeButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => setTodayEventsModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Event Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={addEventModalVisible}
+        onRequestClose={() => setAddEventModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Add New Event
+            </Text>
+            
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: theme.colors.text }]}>Event Title</Text>
+              <TextInput
+                style={[styles.textInput, { 
+                  backgroundColor: theme.colors.card,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border 
+                }]}
+                placeholder="Enter event title"
+                placeholderTextColor={theme.colors.text + "80"}
+                value={newEventTitle}
+                onChangeText={setNewEventTitle}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: theme.colors.text }]}>Date (YYYY-MM-DD)</Text>
+              <TextInput
+                style={[styles.textInput, { 
+                  backgroundColor: theme.colors.card,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border 
+                }]}
+                placeholder="2025-09-15"
+                placeholderTextColor={theme.colors.text + "80"}
+                value={newEventDate}
+                onChangeText={setNewEventDate}
+              />
+            </View>
+            
+            <View style={styles.modalButtonsContainer}>
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton, { borderColor: theme.colors.primary }]}
+                onPress={() => setAddEventModalVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.primary }]}>Cancel</Text>
+              </Pressable>
+              
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handleAddEvent}
+              >
+                <Text style={[styles.modalButtonText, { color: "#fff" }]}>Add Event</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Event Button */}
       <TouchableOpacity
         style={[styles.addEventButton, { backgroundColor: theme.colors.primary }]}
-        onPress={navigateToAddEvent}
+        onPress={openAddEventModal}
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
@@ -474,5 +626,45 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 4,
     elevation: 5,
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  modalButtonsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginHorizontal: 4,
+  },
+  cancelButton: {
+    borderWidth: 1,
+    backgroundColor: "transparent",
+  },
+  modalButtonText: {
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  tasksCountText: {
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
