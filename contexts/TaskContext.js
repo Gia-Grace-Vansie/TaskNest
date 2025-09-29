@@ -1,9 +1,10 @@
+// contexts/TaskContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const TaskContext = createContext();
 
-export function TaskProvider({ children }) {
+export const TaskProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +28,7 @@ export function TaskProvider({ children }) {
   // Load tasks from AsyncStorage
   const loadTasks = async () => {
     try {
-      const storedTasks = await AsyncStorage.getItem('@todo_tasks');
+      const storedTasks = await AsyncStorage.getItem('@tasks');
       if (storedTasks !== null) {
         setTasks(JSON.parse(storedTasks));
       }
@@ -39,13 +40,13 @@ export function TaskProvider({ children }) {
   // Load events from AsyncStorage
   const loadEvents = async () => {
     try {
-      const storedEvents = await AsyncStorage.getItem('@calendar_events');
+      const storedEvents = await AsyncStorage.getItem('@events');
       if (storedEvents !== null) {
         setEvents(JSON.parse(storedEvents));
       } else {
         // Initialize with empty array if no events exist
         setEvents([]);
-        await AsyncStorage.setItem('@calendar_events', JSON.stringify([]));
+        await AsyncStorage.setItem('@events', JSON.stringify([]));
       }
     } catch (error) {
       console.error('Error loading events:', error);
@@ -55,7 +56,7 @@ export function TaskProvider({ children }) {
   // Save tasks to AsyncStorage
   const saveTasks = async (newTasks) => {
     try {
-      await AsyncStorage.setItem('@todo_tasks', JSON.stringify(newTasks));
+      await AsyncStorage.setItem('@tasks', JSON.stringify(newTasks));
     } catch (error) {
       console.error('Error saving tasks:', error);
     }
@@ -64,22 +65,23 @@ export function TaskProvider({ children }) {
   // Save events to AsyncStorage
   const saveEvents = async (newEvents) => {
     try {
-      await AsyncStorage.setItem('@calendar_events', JSON.stringify(newEvents));
+      await AsyncStorage.setItem('@events', JSON.stringify(newEvents));
     } catch (error) {
       console.error('Error saving events:', error);
     }
   };
 
   // Task functions
-  const addTask = (title, dueDate = "", dueTime = "23:59") => {
+  const addTask = (taskData) => {
     const newTask = {
       id: Date.now().toString(),
-      title,
+      title: taskData.title || "Untitled Task",
       completed: false,
-      dueDate,
-      dueTime,
-      subject: "Personal",
-      priority: "medium",
+      dueDate: taskData.dueDate || "",
+      dueTime: taskData.dueTime || "23:59",
+      subject: taskData.subject || "Personal",
+      priority: taskData.priority || "medium",
+      description: taskData.description || "",
       createdAt: new Date().toISOString(),
     };
     const updatedTasks = [...tasks, newTask];
@@ -123,29 +125,39 @@ export function TaskProvider({ children }) {
   };
 
   // Event functions for calendar
-  // contexts/TaskContext.jsx - Just the addEvent function
-const addEvent = (eventData) => {
-  console.log("TaskContext: addEvent called with:", eventData);
-  
-  const newEvent = {
-    id: Date.now().toString(),
-    title: eventData.title || "Untitled Event",
-    description: eventData.description || "",
-    date: eventData.date || new Date().toISOString().split('T')[0],
-    time: eventData.time || "00:00",
-    priority: eventData.priority || "medium",
-    type: eventData.type || "event",
-    completed: false,
-    createdAt: new Date().toISOString(),
+  const addEvent = (eventData) => {
+    const newEvent = {
+      id: Date.now().toString(),
+      title: eventData.title || "Untitled Event",
+      description: eventData.description || "",
+      date: eventData.date || new Date().toISOString().split('T')[0],
+      time: eventData.time || "00:00",
+      priority: eventData.priority || "medium",
+      type: eventData.type || "event",
+      completed: false,
+      createdAt: new Date().toISOString(),
+    };
+    
+    const updatedEvents = [...events, newEvent];
+    setEvents(updatedEvents);
+    saveEvents(updatedEvents);
+    return newEvent;
   };
-  
-  const updatedEvents = [...events, newEvent];
-  setEvents(updatedEvents);
-  saveEvents(updatedEvents);
-  
-  console.log("TaskContext: Event saved. Total events:", updatedEvents.length);
-  return newEvent;
-};
+
+  const removeEvent = (eventId) => {
+    const updatedEvents = events.filter(event => event.id !== eventId);
+    setEvents(updatedEvents);
+    saveEvents(updatedEvents);
+  };
+
+  const updateEvent = (updatedEvent) => {
+    const updatedEvents = events.map(event => 
+      event.id === updatedEvent.id ? updatedEvent : event
+    );
+    setEvents(updatedEvents);
+    saveEvents(updatedEvents);
+    return true;
+  };
 
   const getEventsForDate = (dateStr) => {
     return events.filter(event => event.date === dateStr);
@@ -159,6 +171,18 @@ const addEvent = (eventData) => {
     const dateEvents = getEventsForDate(dateStr);
     const dateTasks = getTasksForDate(dateStr);
     return [...dateEvents, ...dateTasks];
+  };
+
+  const getUpcomingTasks = (days = 7) => {
+    const today = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(today.getDate() + days);
+    
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const taskDate = new Date(task.dueDate);
+      return taskDate >= today && taskDate <= futureDate && !task.completed;
+    }).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
   };
 
   const value = {
@@ -176,9 +200,12 @@ const addEvent = (eventData) => {
     events,
     setEvents,
     addEvent,
+    removeEvent,
+    updateEvent,
     getEventsForDate,
     getTasksForDate,
     getAllItemsForDate,
+    getUpcomingTasks,
     
     // Loading state
     isLoading,
@@ -189,12 +216,21 @@ const addEvent = (eventData) => {
       {children}
     </TaskContext.Provider>
   );
-}
+};
 
-export function useTaskContext() {
+// Export both hook names for compatibility
+export const useTaskContext = () => {
   const context = useContext(TaskContext);
   if (!context) {
     throw new Error('useTaskContext must be used within a TaskProvider');
   }
   return context;
-}
+};
+
+export const useTask = () => {
+  const context = useContext(TaskContext);
+  if (!context) {
+    throw new Error('useTask must be used within a TaskProvider');
+  }
+  return context;
+};

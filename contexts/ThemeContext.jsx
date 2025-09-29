@@ -1,39 +1,39 @@
+// contexts/ThemeContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Classy-cutesy student theme colors
 const baseLightTheme = {
+  isDark: false,
   colors: {
     primary: "#5A8DEE",     // main accent
-    background: "#FDF6F0",  // light background
-    card: "#FFFFFF",         // cards / containers
-    text: "#1A1A1A",         // dark text
-    border: "#ddd",
+    background: "#FDF6F0",  // warm light background
+    card: "#FFFFFF",        // cards / containers
+    text: "#1A1A1A",        // dark text
+    border: "#E8D7C7",      // warm border
     accent: "#5A8DEE",
+    notification: "#FF6B6B",
   },
 };
 
 const baseDarkTheme = {
+  isDark: true,
   colors: {
     primary: "#5A8DEE",
     background: "#1A1A1A",  // dark background
-    card: "#2C2C2C",         // dark card
-    text: "#FFFFFF",          // light text
-    border: "#333",
+    card: "#2C2C2C",        // dark card
+    text: "#FFFFFF",        // light text
+    border: "#444444",      // dark border
     accent: "#5A8DEE",
+    notification: "#FF6B6B",
   },
 };
 
-const ThemeContext = createContext({
-  theme: baseLightTheme,
-  toggleTheme: () => {},
-  setThemeMode: () => {},
-  setAccentColor: () => {},
-});
+const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(baseLightTheme);
-  const [mode, setMode] = useState("light"); // "light" or "dark"
+  const [mode, setMode] = useState("light");
   const [accentColor, setAccentColorState] = useState("#5A8DEE");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -119,18 +119,21 @@ export const ThemeProvider = ({ children }) => {
 
   // Provide loading state to prevent flash of default theme
   if (isLoading) {
-    return null; // or a loading spinner
+    return null;
   }
 
+  const value = {
+    theme,
+    toggleTheme,
+    setThemeMode,
+    setAccentColor,
+    mode,
+    accentColor,
+    isLoading,
+  };
+
   return (
-    <ThemeContext.Provider value={{ 
-      theme, 
-      toggleTheme, 
-      setThemeMode, 
-      setAccentColor,
-      mode, // expose current mode if needed
-      accentColor // expose current accent color if needed
-    }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

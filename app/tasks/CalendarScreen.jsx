@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useCalendarEvents } from "../../hooks/useCalendarEvents";
 
 const holidays = {
   "2025-01-01": "New Year's Day",
@@ -30,35 +31,46 @@ const holidays = {
   "2025-12-30": "Rizal Day",
 };
 
-// Mock events data - replace with your actual events
-const mockEvents = [
-  { id: 1, title: "Project Proposal", dueDate: "2025-09-15", completed: false },
-  { id: 2, title: "Team Meeting", dueDate: "2025-09-15", completed: false },
-  { id: 3, title: "Design Review", dueDate: "2025-09-20", completed: true },
-  { id: 4, title: "Client Presentation", dueDate: "2025-09-25", completed: false },
-  { id: 5, title: "Code Deployment", dueDate: "2025-09-10", completed: false },
-];
-
 export default function CalendarScreen() {
   const today = new Date();
   const navigation = useNavigation();
   const { theme } = useTheme();
+  
+  // Use the custom hook for event management
+  const {
+    events,
+    loading,
+    addEvent,
+    deleteEvent,
+    editEventTitle,
+    getEventsForDate,
+    getEventCountForDate,
+  } = useCalendarEvents();
 
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [viewMode, setViewMode] = useState("monthly"); // "monthly" or "weekly"
+  const [viewMode, setViewMode] = useState("monthly");
   const [modalVisible, setModalVisible] = useState(false);
   const [eventsForSelectedDate, setEventsForSelectedDate] = useState([]);
+  const [currentWeek, setCurrentWeek] = useState(0);
   
-  // New state for Add Event modal
+  // Add Event modal
   const [addEventModalVisible, setAddEventModalVisible] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
-  const [events, setEvents] = useState(mockEvents);
-  
-  // State for Today's Events modal
+
+  // Edit Event state
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [editEventTitleText, setEditEventTitleText] = useState("");
+
+  // Today's Events modal
   const [todayEventsModalVisible, setTodayEventsModalVisible] = useState(false);
+
+  // Set current week based on today's date
+  useEffect(() => {
+    setCurrentWeek(getWeekOfMonth(today));
+  }, []);
 
   const generateMonth = (month, year) => {
     const firstDay = new Date(year, month, 1).getDay();
@@ -69,24 +81,56 @@ export default function CalendarScreen() {
     return days;
   };
 
-  const generateWeek = (month, year, weekStart) => {
+  // Get the week of month for a given date
+  const getWeekOfMonth = (date) => {
+    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const firstDayOfWeek = firstDayOfMonth.getDay();
+    const offsetDate = date.getDate() + firstDayOfWeek - 1;
+    return Math.floor(offsetDate / 7);
+  };
+
+  // Generate a specific week of the month
+  const generateWeek = (month, year, weekIndex) => {
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstDayOfWeek = firstDayOfMonth.getDay();
+    
+    // Calculate the first day of the requested week
+    const startDate = 1 + (weekIndex * 7) - firstDayOfWeek;
+    
     let days = [];
     for (let i = 0; i < 7; i++) {
-      const date = new Date(year, month, weekStart + i);
-      days.push(date.getDate());
+      const currentDate = new Date(year, month, startDate + i);
+      
+      // Check if the date is in the current month
+      if (currentDate.getMonth() === month) {
+        days.push({
+          day: currentDate.getDate(),
+          month: month,
+          year: year,
+          isCurrentMonth: true
+        });
+      } else {
+        // Date is from previous or next month
+        days.push({
+          day: currentDate.getDate(),
+          month: currentDate.getMonth(),
+          year: currentDate.getFullYear(),
+          isCurrentMonth: false
+        });
+      }
     }
     return days;
   };
 
-  const getEventsForDate = (dateStr) => {
-    return events.filter(event => event.dueDate === dateStr);
+  const getHolidayForDate = (dateStr) => {
+    return holidays[dateStr];
   };
 
   const handleDatePress = (year, month, day) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     setSelectedDate(dateStr);
-    const events = getEventsForDate(dateStr);
-    setEventsForSelectedDate(events);
+    const eventsForDate = getEventsForDate(dateStr);
+    setEventsForSelectedDate(eventsForDate);
     setModalVisible(true);
   };
 
@@ -102,41 +146,44 @@ export default function CalendarScreen() {
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
+    // Reset to first week when changing months
+    setCurrentWeek(0);
   };
 
   const changeWeek = (direction) => {
-    changeMonth(direction);
+    let newWeek = currentWeek + direction;
+    const weeksInMonth = getWeeksInMonth(currentMonth, currentYear);
+    
+    if (newWeek < 0) {
+      // Go to previous month
+      changeMonth(-1);
+      setCurrentWeek(getWeeksInMonth(currentMonth - 1, currentYear) - 1);
+    } else if (newWeek >= weeksInMonth) {
+      // Go to next month
+      changeMonth(1);
+      setCurrentWeek(0);
+    } else {
+      setCurrentWeek(newWeek);
+    }
   };
 
-  const getEventCountForDate = (dateStr) => {
-    return events.filter(event => event.dueDate === dateStr).length;
+  // Calculate number of weeks in a month
+  const getWeeksInMonth = (month, year) => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const numWeeks = Math.ceil((firstDay.getDay() + daysInMonth) / 7);
+    return numWeeks;
   };
 
-  // Function to handle adding events
-  const handleAddEvent = () => {
-    if (!newEventTitle.trim() || !newEventDate.trim()) {
-      Alert.alert("Error", "Please fill in both title and date");
-      return;
+  // Add Event using the hook
+  const handleAddEvent = async () => {
+    const success = await addEvent(newEventTitle, newEventDate);
+    if (success) {
+      setNewEventTitle("");
+      setNewEventDate("");
+      setAddEventModalVisible(false);
     }
-
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(newEventDate)) {
-      Alert.alert("Error", "Please use YYYY-MM-DD format for date");
-      return;
-    }
-
-    const newEvent = {
-      id: events.length + 1,
-      title: newEventTitle.trim(),
-      dueDate: newEventDate,
-      completed: false,
-    };
-
-    setEvents([...events, newEvent]);
-    setNewEventTitle("");
-    setNewEventDate("");
-    setAddEventModalVisible(false);
-    Alert.alert("Success", "Event added successfully!");
   };
 
   const openAddEventModal = () => {
@@ -145,7 +192,47 @@ export default function CalendarScreen() {
     setAddEventModalVisible(true);
   };
 
-  // Show today's events in a modal
+  // Delete Event using the hook
+  const handleDeleteEvent = async (eventId) => {
+    const success = await deleteEvent(eventId);
+    if (success) {
+      // Update the modal view immediately
+      const updatedSelectedEvents = eventsForSelectedDate.filter(e => e.id !== eventId);
+      setEventsForSelectedDate(updatedSelectedEvents);
+      
+      // If no events left, close the modal
+      if (updatedSelectedEvents.length === 0) {
+        setModalVisible(false);
+      }
+    }
+  };
+
+  // Edit Event using the hook
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setEditEventTitleText(event.title);
+  };
+
+  const saveEditedEvent = async () => {
+    if (!editEventTitleText.trim()) {
+      Alert.alert("Error", "Event title cannot be empty");
+      return;
+    }
+    
+    const success = await editEventTitle(editingEvent.id, editEventTitleText);
+    if (success) {
+      // Update the modal view
+      const updatedSelectedEvents = eventsForSelectedDate.map(e => 
+        e.id === editingEvent.id ? { ...e, title: editEventTitleText.trim() } : e
+      );
+      setEventsForSelectedDate(updatedSelectedEvents);
+      
+      setEditingEvent(null);
+      setEditEventTitleText("");
+    }
+  };
+
+  // Today's events
   const showDailySummary = () => {
     const todayDateStr = today.toISOString().split('T')[0];
     const eventsToday = getEventsForDate(todayDateStr);
@@ -154,11 +241,27 @@ export default function CalendarScreen() {
     setTodayEventsModalVisible(true);
   };
 
-  const days = viewMode === "monthly" 
-    ? generateMonth(currentMonth, currentYear)
-    : generateWeek(currentMonth, currentYear, 1);
+  // Get the display days based on view mode
+  const getDisplayDays = () => {
+    if (viewMode === "monthly") {
+      return generateMonth(currentMonth, currentYear);
+    } else {
+      return generateWeek(currentMonth, currentYear, currentWeek);
+    }
+  };
 
+  const days = getDisplayDays();
   const monthName = new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" });
+  const weekNumber = currentWeek + 1;
+  const totalWeeks = getWeeksInMonth(currentMonth, currentYear);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: theme.colors.text }}>Loading events...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -201,7 +304,7 @@ export default function CalendarScreen() {
             <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
           <Text style={[styles.monthTitle, { color: theme.colors.primary }]}>
-            {monthName}, {currentYear} {viewMode === "weekly" && "(Week 1)"}
+            {monthName}, {currentYear} {viewMode === "weekly" && `(Week ${weekNumber} of ${totalWeeks})`}
           </Text>
           <TouchableOpacity onPress={() => viewMode === "monthly" ? changeMonth(1) : changeWeek(1)}>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
@@ -220,42 +323,84 @@ export default function CalendarScreen() {
         {/* Calendar Grid */}
         <View style={styles.daysGrid}>
           {days.map((day, idx) => {
-            if (!day) return <View key={idx} style={styles.dayBox} />;
-            
-            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const eventCount = getEventCountForDate(dateStr);
-            const isHoliday = holidays[dateStr];
-            const isToday = dateStr === today.toISOString().split('T')[0];
+            if (viewMode === "monthly") {
+              // Monthly view logic
+              if (!day) return <View key={idx} style={styles.dayBox} />;
+              
+              const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const eventCount = getEventCountForDate(dateStr);
+              const isHoliday = holidays[dateStr];
+              const isToday = dateStr === today.toISOString().split('T')[0];
 
-            return (
-              <TouchableOpacity
-                key={idx}
-                style={[
-                  styles.dayBox,
-                  isToday && { backgroundColor: theme.colors.primary, borderRadius: 8 },
-                ]}
-                onPress={() => handleDatePress(currentYear, currentMonth, day)}
-              >
-                <Text
+              return (
+                <TouchableOpacity
+                  key={idx}
                   style={[
-                    styles.dayText,
-                    { color: theme.colors.text },
-                    isToday && { color: "#fff", fontWeight: "700" },
+                    styles.dayBox,
+                    isToday && { backgroundColor: theme.colors.primary, borderRadius: 8 },
                   ]}
+                  onPress={() => handleDatePress(currentYear, currentMonth, day)}
                 >
-                  {day}
-                </Text>
-                {isHoliday && <View style={styles.holidayDot} />}
-                {eventCount > 0 && (
-                  <View style={[
-                    styles.taskIndicator,
-                    { backgroundColor: theme.colors.primary }
-                  ]}>
-                    <Text style={styles.taskIndicatorText}>{eventCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
+                  <Text
+                    style={[
+                      styles.dayText,
+                      { color: theme.colors.text },
+                      isToday && { color: "#fff", fontWeight: "700" },
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                  {isHoliday && <View style={styles.holidayDot} />}
+                  {eventCount > 0 && (
+                    <View style={[
+                      styles.taskIndicator,
+                      { backgroundColor: theme.colors.primary }
+                    ]}>
+                      <Text style={styles.taskIndicatorText}>{eventCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            } else {
+              // Weekly view logic
+              const dateObj = day;
+              const dateStr = `${dateObj.year}-${String(dateObj.month + 1).padStart(2, "0")}-${String(dateObj.day).padStart(2, "0")}`;
+              const eventCount = getEventCountForDate(dateStr);
+              const isHoliday = holidays[dateStr];
+              const isToday = dateStr === today.toISOString().split('T')[0];
+              const isCurrentMonth = dateObj.month === currentMonth;
+
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.dayBox,
+                    isToday && { backgroundColor: theme.colors.primary, borderRadius: 8 },
+                    !isCurrentMonth && { opacity: 0.4 },
+                  ]}
+                  onPress={() => handleDatePress(dateObj.year, dateObj.month, dateObj.day)}
+                >
+                  <Text
+                    style={[
+                      styles.dayText,
+                      { color: isCurrentMonth ? theme.colors.text : "#999" },
+                      isToday && { color: "#fff", fontWeight: "700" },
+                    ]}
+                  >
+                    {dateObj.day}
+                  </Text>
+                  {isHoliday && <View style={styles.holidayDot} />}
+                  {eventCount > 0 && (
+                    <View style={[
+                      styles.taskIndicator,
+                      { backgroundColor: theme.colors.primary }
+                    ]}>
+                      <Text style={styles.taskIndicatorText}>{eventCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }
           })}
         </View>
 
@@ -275,7 +420,7 @@ export default function CalendarScreen() {
         </View>
       </ScrollView>
 
-      {/* Date Events Modal */}
+      {/* Event Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -287,6 +432,16 @@ export default function CalendarScreen() {
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Events for {selectedDate}
             </Text>
+            
+            {/* Show Holiday Information */}
+            {getHolidayForDate(selectedDate) && (
+              <View style={[styles.holidayBanner, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Ionicons name="calendar" size={20} color={theme.colors.primary} />
+                <Text style={[styles.holidayText, { color: theme.colors.primary }]}>
+                  {getHolidayForDate(selectedDate)}
+                </Text>
+              </View>
+            )}
             
             {eventsForSelectedDate.length === 0 ? (
               <Text style={[styles.noTasksText, { color: theme.colors.text }]}>
@@ -307,6 +462,12 @@ export default function CalendarScreen() {
                   ]}>
                     {event.title}
                   </Text>
+                  <TouchableOpacity onPress={() => handleEditEvent(event)} style={{ marginLeft: 8 }}>
+                    <Ionicons name="pencil" size={18} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDeleteEvent(event.id)} style={{ marginLeft: 8 }}>
+                    <Ionicons name="trash" size={18} color="red" />
+                  </TouchableOpacity>
                 </View>
               ))
             )}
@@ -333,6 +494,16 @@ export default function CalendarScreen() {
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               📋 Today's Events ({selectedDate})
             </Text>
+            
+            {/* Show Holiday Information */}
+            {getHolidayForDate(selectedDate) && (
+              <View style={[styles.holidayBanner, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Ionicons name="calendar" size={20} color={theme.colors.primary} />
+                <Text style={[styles.holidayText, { color: theme.colors.primary }]}>
+                  {getHolidayForDate(selectedDate)}
+                </Text>
+              </View>
+            )}
             
             {eventsForSelectedDate.length === 0 ? (
               <Text style={[styles.noTasksText, { color: theme.colors.text }]}>
@@ -434,6 +605,51 @@ export default function CalendarScreen() {
         </View>
       </Modal>
 
+      {/* Edit Event Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={!!editingEvent}
+        onRequestClose={() => setEditingEvent(null)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Edit Event
+            </Text>
+            
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: theme.colors.text }]}>Event Title</Text>
+              <TextInput
+                style={[styles.textInput, { 
+                  backgroundColor: theme.colors.card,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border 
+                }]}
+                value={editEventTitleText}
+                onChangeText={setEditEventTitleText}
+              />
+            </View>
+            
+            <View style={styles.modalButtonsContainer}>
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton, { borderColor: theme.colors.primary }]}
+                onPress={() => setEditingEvent(null)}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.primary }]}>Cancel</Text>
+              </Pressable>
+              
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={saveEditedEvent}
+              >
+                <Text style={[styles.modalButtonText, { color: "#fff" }]}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Add Event Button */}
       <TouchableOpacity
         style={[styles.addEventButton, { backgroundColor: theme.colors.primary }]}
@@ -445,6 +661,7 @@ export default function CalendarScreen() {
   );
 }
 
+// Your existing styles remain exactly the same
 const styles = StyleSheet.create({
   viewModeContainer: {
     flexDirection: "row",
@@ -580,6 +797,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 16,
     textAlign: "center",
+  },
+  holidayBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  holidayText: {
+    marginLeft: 8,
+    fontWeight: "600",
+    fontSize: 14,
   },
   taskItem: {
     flexDirection: "row",
