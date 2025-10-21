@@ -1,12 +1,14 @@
 // app/App.js
-import React from "react";
+import React, { useEffect } from "react";
+import { Platform, StatusBar } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
+import ImmersiveMode from "react-native-immersive-mode";
 
-// Import screens (these are in the app folder)
-import Dashboard from "./dashboard";
+// Import screens - CORRECTED PATHS
+import Dashboard from "./dashboard"; // This should be your dashboard file
 import CalendarScreen from "./tasks/CalendarScreen";
 import ToDoScreen from "./tasks/ToDoScreen";
 import ProfileScreen from "./tasks/ProfileScreen";
@@ -14,7 +16,7 @@ import Welcome from "./welcome";
 import SignUp from "./auth/signup";
 import AddEventScreen from "./tasks/AddEventScreen";
 
-// Import contexts (these are outside the app folder)
+// Import contexts
 import { UserProvider } from "../contexts/UserContext";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import { TaskProvider } from "../contexts/TaskContext";
@@ -22,7 +24,7 @@ import { TaskProvider } from "../contexts/TaskContext";
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Create a stack navigator for the Calendar tab
+// Calendar stack
 function CalendarStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -54,10 +56,10 @@ function MainTabs() {
         component={Dashboard}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons 
-              name={focused ? "home" : "home-outline"} 
-              size={24} 
-              color={color} 
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={24}
+              color={color}
             />
           ),
         }}
@@ -67,10 +69,10 @@ function MainTabs() {
         component={CalendarStack}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons 
-              name={focused ? "calendar" : "calendar-outline"} 
-              size={24} 
-              color={color} 
+            <Ionicons
+              name={focused ? "calendar" : "calendar-outline"}
+              size={24}
+              color={color}
             />
           ),
         }}
@@ -80,10 +82,10 @@ function MainTabs() {
         component={ToDoScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons 
-              name={focused ? "list" : "list-outline"} 
-              size={24} 
-              color={color} 
+            <Ionicons
+              name={focused ? "list" : "list-outline"}
+              size={24}
+              color={color}
             />
           ),
         }}
@@ -93,10 +95,10 @@ function MainTabs() {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons 
-              name={focused ? "person" : "person-outline"} 
-              size={24} 
-              color={color} 
+            <Ionicons
+              name={focused ? "person" : "person-outline"}
+              size={24}
+              color={color}
             />
           ),
         }}
@@ -106,20 +108,34 @@ function MainTabs() {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      try {
+        ImmersiveMode.fullLayout(true);
+        ImmersiveMode.setBarMode("Full");
+      } catch (e) {
+        console.warn("ImmersiveMode not available in Expo Go");
+      }
+    }
+  }, []);
+
   return (
     <UserProvider>
       <ThemeProvider>
         <TaskProvider>
-          <NavigationContainer>
-            <Stack.Navigator 
-              initialRouteName="Welcome" 
-              screenOptions={{ headerShown: false }}
-            >
-              <Stack.Screen name="Welcome" component={Welcome} />
-              <Stack.Screen name="SignUp" component={SignUp} />
-              <Stack.Screen name="Main" component={MainTabs} />
-            </Stack.Navigator>
-          </NavigationContainer>
+          <StatusBar hidden />
+          <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+            <NavigationContainer>
+              <Stack.Navigator
+                initialRouteName="Welcome"
+                screenOptions={{ headerShown: false }}
+              >
+                <Stack.Screen name="Welcome" component={Welcome} />
+                <Stack.Screen name="SignUp" component={SignUp} />
+                <Stack.Screen name="Main" component={MainTabs} />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </SafeAreaView>
         </TaskProvider>
       </ThemeProvider>
     </UserProvider>

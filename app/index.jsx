@@ -6,8 +6,8 @@ export default function Welcome() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Welcome</Text>
-      <Text style={styles.subtitle}>Get started with your app</Text>
+      <Text style={styles.title}>TaskNest</Text>
+      <Text style={styles.subtitle}>Where your goals take flight.</Text>
 
       <Pressable
         style={styles.button}
@@ -20,9 +20,39 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-  title: { fontSize: 32, fontWeight: "bold", marginBottom: 10 },
-  subtitle: { fontSize: 16, color: "#666", marginBottom: 40 },
-  button: { backgroundColor: "black", padding: 16, borderRadius: 12, width: "80%" },
-  buttonText: { color: "white", fontSize: 18, textAlign: "center", fontWeight: "bold" },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#FAFAFA", // Off-White background
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#1B1F3B", // Deep Navy text
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#4A90E2", // Bright Blue for a lively subtitle
+    marginBottom: 40,
+  },
+  button: {
+    backgroundColor: "#4A90E2", // Bright Blue primary button
+    padding: 16,
+    borderRadius: 12,
+    width: "80%",
+    shadowColor: "#1B1F3B",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  buttonText: {
+    color: "#FAFAFA", // Off-White text for contrast
+    fontSize: 18,
+    textAlign: "center",
+    fontWeight: "bold",
+  },
 });

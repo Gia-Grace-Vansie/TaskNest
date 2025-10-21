@@ -5,12 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Modal,
   Pressable,
   Alert,
   TextInput,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -31,7 +31,37 @@ const holidays = {
   "2025-12-30": "Rizal Day",
 };
 
-export default function CalendarScreen() {
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  state = { hasError: false, error: null, errorInfo: null };
+  
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#fff' }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'red', marginBottom: 10 }}>
+            Something went wrong
+          </Text>
+          <Text style={{ textAlign: 'center', color: '#666' }}>
+            {this.state.error?.toString()}
+          </Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function CalendarScreenContent() {
   const today = new Date();
   const navigation = useNavigation();
   const { theme } = useTheme();
@@ -71,6 +101,39 @@ export default function CalendarScreen() {
   useEffect(() => {
     setCurrentWeek(getWeekOfMonth(today));
   }, []);
+
+  // Format date input with automatic dashes and numbers only
+  const formatDateInput = (text) => {
+    // Remove all non-digit characters
+    const numbers = text.replace(/\D/g, '');
+    
+    // Auto-format as user types: YYYY-MM-DD
+    if (numbers.length <= 4) {
+      // Just the year
+      setNewEventDate(numbers);
+    } else if (numbers.length <= 6) {
+      // Year and month
+      setNewEventDate(`${numbers.slice(0, 4)}-${numbers.slice(4)}`);
+    } else {
+      // Full date
+      setNewEventDate(`${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6, 8)}`);
+    }
+  };
+
+  // Format date input for editing
+  const formatEditDateInput = (text) => {
+    // Remove all non-digit characters
+    const numbers = text.replace(/\D/g, '');
+    
+    // Auto-format as user types: YYYY-MM-DD
+    if (numbers.length <= 4) {
+      setEditingEvent({ ...editingEvent, dueDate: numbers });
+    } else if (numbers.length <= 6) {
+      setEditingEvent({ ...editingEvent, dueDate: `${numbers.slice(0, 4)}-${numbers.slice(4)}` });
+    } else {
+      setEditingEvent({ ...editingEvent, dueDate: `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6, 8)}` });
+    }
+  };
 
   const generateMonth = (month, year) => {
     const firstDay = new Date(year, month, 1).getDay();
@@ -582,7 +645,9 @@ export default function CalendarScreen() {
                 placeholder="2025-09-15"
                 placeholderTextColor={theme.colors.text + "80"}
                 value={newEventDate}
-                onChangeText={setNewEventDate}
+                onChangeText={formatDateInput}
+                keyboardType="numeric"
+                maxLength={10}
               />
             </View>
             
@@ -630,6 +695,21 @@ export default function CalendarScreen() {
                 onChangeText={setEditEventTitleText}
               />
             </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: theme.colors.text }]}>Date (YYYY-MM-DD)</Text>
+              <TextInput
+                style={[styles.textInput, { 
+                  backgroundColor: theme.colors.card,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border 
+                }]}
+                value={editingEvent?.dueDate || ''}
+                onChangeText={formatEditDateInput}
+                keyboardType="numeric"
+                maxLength={10}
+              />
+            </View>
             
             <View style={styles.modalButtonsContainer}>
               <Pressable
@@ -658,6 +738,15 @@ export default function CalendarScreen() {
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>
+  );
+}
+
+// Main export with Error Boundary
+export default function CalendarScreen(props) {
+  return (
+    <ErrorBoundary>
+      <CalendarScreenContent {...props} />
+    </ErrorBoundary>
   );
 }
 

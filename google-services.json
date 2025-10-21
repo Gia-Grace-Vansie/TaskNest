@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "772927447522",
+    "project_id": "tasknest-1780b",
+    "storage_bucket": "tasknest-1780b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:772927447522:android:371f99d0bad5f07efd99bb",
+        "android_client_info": {
+          "package_name": "com.giagracevansie20.tasknest"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "772927447522-6gajulbrp53pqljd28sutilpbi42gmiu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXgv9of6m8tPh8oFX0moncNZwsMGhc2_g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "772927447522-6gajulbrp53pqljd28sutilpbi42gmiu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
